@@ -1,7 +1,7 @@
 /*
 KV Team OSD
 http://code.google.com/p/rush-osd-development/
-February  2013  V2.2
+May  2013  V2.2
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
@@ -74,8 +74,13 @@ void setup()
   UCSR0A  |= (1<<U2X0); UBRR0H = h; UBRR0L = l; 
 //---
   Serial.flush();
+  
+  //PWM RSSI
+  pinMode(PwmRssiPin, INPUT);
+  
   //Led output
   pinMode(7,OUTPUT);
+ 
   checkEEPROM();
   readEEPROM();
   MAX7456Setup();
@@ -99,6 +104,7 @@ void setMspRequests() {
       REQ_MSP_STATUS|
       REQ_MSP_RAW_GPS|
       REQ_MSP_ATTITUDE|
+      REQ_MSP_RAW_IMU|
       REQ_MSP_ALTITUDE|
       REQ_MSP_RC_TUNING|
       REQ_MSP_PID|
@@ -121,14 +127,7 @@ void setMspRequests() {
 
     if(mode_armed == 0) {
         modeMSPRequests |= REQ_MSP_BOX;
-/*
-#ifdef REQ_MSP_BOXNAMES
-      if(msp_ids_failed)
-        modeMSPRequests |= REQ_MSP_BOXNAMES;
-      else
-#endif
-        modeMSPRequests |= REQ_MSP_BOXIDS;
-*/
+
     }
   }
  
@@ -145,13 +144,13 @@ void loop()
 {
   // Process AI   
   if (Settings[S_ENABLEADC]){
-    temperature=(analogRead(temperaturePin)*1.1)/10.23; 
+    temperature=(analogRead(temperaturePin)-102)/2.048; 
     if (!Settings[S_MAINVOLTAGE_VBAT]){
-      static uint8_t ind = 0;
-      static uint16_t voltageRawArray[8];
+      static uint16_t ind = 0;
+      static uint32_t voltageRawArray[8];
       voltageRawArray[(ind++)%8] = analogRead(voltagePin);                  
       uint16_t voltageRaw = 0;
-      for (uint8_t i=0;i<8;i++)
+      for (uint16_t i=0;i<8;i++)
         voltageRaw += voltageRawArray[i];
       voltage = float(voltageRaw) * Settings[S_DIVIDERRATIO] * (1.1/102.3/4/8);  
     }
@@ -165,6 +164,9 @@ void loop()
   }
   if (Settings[S_MWRSSI]) {
       rssiADC = MwRssi;
+  } 
+   if (Settings[S_PWMRSSI]){
+   rssiADC = pulseIn(PwmRssiPin, HIGH);     
   }
  
   // Blink Basic Sanity Test Led at 1hz
@@ -258,7 +260,7 @@ void loop()
         previousarmedstatus=1;
       }
       if(previousarmedstatus && !armed){
-        configPage=6;
+        configPage=8;
         ROW=10;
         COL=1;
         configMode=1;
@@ -381,15 +383,6 @@ void loop()
 }  // End of main loop
 //---------------------  End of Timed Service Routine ---------------------------------------
 
-
-/*void CollectStatistics() {
-  if(GPS_fix && GPS_speed > speedMAX)    // DO NOT DELETE
-    speedMAX = GPS_speed;
-
-  if(temperature > temperMAX)
-    temperMAX = temperature;
-}*/
-
 void calculateTrip(void)
 {
   if(GPS_fix && armed && (GPS_speed>0)) {
@@ -402,7 +395,15 @@ void calculateTrip(void)
 
 void calculateRssi(void)
 {
-  float aa=0; 
+  float aa=0;
+ 
+ if (Settings[S_PWMRSSI]){
+     //Digital read Pin
+   aa = pulseIn(PwmRssiPin, HIGH);
+   aa = ((aa-Settings[S_RSSIMIN]) *101)/((Settings[S_RSSIMAX]*4)-Settings[S_RSSIMIN]) ;  
+ }
+  else
+  { 
   if (Settings[S_MWRSSI]) {
     aa =  MwRssi;    
   }
@@ -415,6 +416,7 @@ void calculateRssi(void)
   rssi = rssi_Int / rssiSample ;
   if(rssi<0) rssi=0;
   if(rssi>100) rssi=100;
+  }
 }
 
 void writeEEPROM(void)

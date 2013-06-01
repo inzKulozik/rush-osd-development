@@ -4,11 +4,11 @@
 #define METRIC 0
 #define IMPERIAL 1
 //Analog input defines
-const uint8_t voltagePin=0;
-const uint8_t vidvoltagePin=2;
-const uint8_t amperagePin=1;
-const uint8_t rssiPin=3;
-const uint8_t temperaturePin=6;            // Temperature pin 6 for original Rushduino Board V1.2
+const uint16_t voltagePin=0;
+const uint16_t vidvoltagePin=2;
+const uint16_t amperagePin=1;
+const uint16_t rssiPin=3;
+const uint16_t temperaturePin=6;            // Temperature pin 6 for original Rushduino Board V1.2
 const uint8_t rssiSample=30;
 //const uint8_t lowrssiAlarm=RSSI_ALARM;     // This will make blink the Rssi if lower then this value
 
@@ -53,6 +53,8 @@ enum Setting_ {
   S_RSSIMAX,
   S_RSSI_ALARM,
   S_DISPLAYRSSI,
+  S_MWRSSI,
+  S_PWMRSSI,
   S_DISPLAYVOLTAGE,
   S_VOLTAGEMIN,
   S_BATCELLS,
@@ -68,6 +70,9 @@ enum Setting_ {
   S_BOARDTYPE,
   S_DISPLAYGPS,
   S_COORDINATES,
+  S_GPSCOORDTOP,
+  S_GPSALTITUDE,
+  S_ANGLETOHOME,
   S_SHOWHEADING,
   S_HEADING360,
   S_UNITSYSTEM,
@@ -78,8 +83,8 @@ enum Setting_ {
   S_SHOWBATLEVELEVOLUTION,
   S_RESETSTATISTICS,
   S_ENABLEADC,
-  S_MWRSSI,
   S_USE_BOXNAMES,
+  S_MODEICON,
   S_DISPLAY_CS,
   S_CS0,
   S_CS1,
@@ -100,39 +105,53 @@ uint8_t Settings[EEPROM_SETTINGS];
 
 // For Settings Defaults
 uint8_t EEPROM_DEFAULT[EEPROM_SETTINGS] = {
-1,   // used for check
-0,   // S_RSSIMIN
-255, // S_RSSIMAX
-60,  //S_RSSI_ALARM
-1,   // S_DISPLAYRSSI
-1,   // S_DISPLAYVOLTAGE
-105, // S_VOLTAGEMIN
-3,   // S_BATCELLS
-100, // S_DIVIDERRATIO
-0,   // S_MAINVOLTAGE_VBAT
-0,   // S_AMPERAGE
-0,   // S_AMPER_HOUR
-0,   // S_VIDVOLTAGE
-100, // S_VIDDIVIDERRATIO
-0,   // S_VIDVOLTAGE_VBAT
-0,   // S_DISPLAYTEMPERATURE
-255, // S_TEMPERATUREMAX
-0,   // S_BOARDTYPE
-1,   // S_DISPLAYGPS
-0,   // S_COORDINATES
-1,   // S_SHOWHEADING
-1,   // S_HEADING360
-0,   // S_UNITSYSTEM
-1,   // S_VIDEOSIGNALTYPE
-1,   // S_THROTTLEPOSITION
-1,   // S_DISPLAY_HORIZON_BR
-1,   // S_WITHDECORATION
-0,   // S_SHOWBATLEVELEVOLUTION
-1,   // S_RESETSTATISTICS
-0,   // S_ENABLEADC
-1,   // S_MWRSSI
-0,   // S_USE_BOXNAMES
-0,   // S_DISPLAY_CS,
+1,   // used for check              0
+
+0,   // S_RSSIMIN                   1
+255, // S_RSSIMAX                   2
+60,  //S_RSSI_ALARM                 3
+1,   // S_DISPLAYRSSI               4
+1,   // S_MWRSSI                    5
+0,   // S_PWMRSSI                   6
+
+1,   // S_DISPLAYVOLTAGE            7
+105, // S_VOLTAGEMIN                8
+3,   // S_BATCELLS                  9
+100, // S_DIVIDERRATIO              10
+1,   // S_MAINVOLTAGE_VBAT          11
+
+0,   // S_AMPERAGE                  12
+0,   // S_AMPER_HOUR                13
+
+0,   // S_VIDVOLTAGE                14
+100, // S_VIDDIVIDERRATIO           15
+0,   // S_VIDVOLTAGE_VBAT           16 
+
+0,   // S_DISPLAYTEMPERATURE        17
+255, // S_TEMPERATUREMAX            18
+
+1,   // S_BOARDTYPE                 19
+
+1,   // S_DISPLAYGPS                20
+0,   // S_COORDINATES               21
+0,   // S_GPSCOORDTOP               22
+1,   // S_GPSALTITUDE               23
+1,   // S_ANGLETOHOME               24 
+1,   // S_SHOWHEADING               25
+1,   // S_HEADING360                26
+
+0,   // S_UNITSYSTEM                27
+1,   // S_VIDEOSIGNALTYPE           28
+1,   // S_THROTTLEPOSITION          29
+1,   // S_DISPLAY_HORIZON_BR        30
+1,   // S_WITHDECORATION            31
+1,   // S_SHOWBATLEVELEVOLUTION     32
+0,   // S_RESETSTATISTICS           33
+0,   // S_ENABLEADC                 34
+0,   // S_USE_BOXNAMES              35
+1,   // S_MODEICON                  36
+
+0,   // S_DISPLAY_CS,               37
 0,   // S_CS0,
 0,   // S_CS1,
 0,   // S_CS2,
@@ -143,6 +162,10 @@ uint8_t EEPROM_DEFAULT[EEPROM_SETTINGS] = {
 0,   // S_CS7,
 0,   // S_CS8,
 0,   // S_CS9,
+
+
+
+
 };
 
 static uint8_t P8[PIDITEMS], I8[PIDITEMS], D8[PIDITEMS];
@@ -169,7 +192,7 @@ uint8_t MwVersion=0;
 uint8_t MwVBat=0;
 int16_t MwVario=0;
 uint8_t armed=0;
-uint8_t previousarmedstatus=0;  // NEB for statistics after disarming
+uint8_t previousarmedstatus=0;  // for statistics after disarming
 int16_t GPS_distanceToHome=0;
 uint8_t GPS_fix=0;
 int32_t GPS_latitude;
@@ -181,7 +204,7 @@ uint8_t GPS_numSat=0;
 int16_t I2CError=0;
 uint16_t cycleTime=0;
 uint16_t pMeterSum=0;
-uint8_t MwRssi=0;
+uint16_t MwRssi=0;
 
 //For Current Throttle
 int LowT = 1100;
@@ -209,11 +232,11 @@ int rssi_Int=0;
 
 
 // For Voltage
-uint8_t voltage=0;                      // its the value x10
-uint8_t vidvoltage=0;                   // its the value x10
+uint16_t voltage=0;                      // its the value x10
+uint16_t vidvoltage=0;                   // its the value x10
 
 // For temprature
-int8_t temperature=0;                  // temperature in degrees Centigrade
+int16_t temperature=0;                  // temperature in degrees Centigrade
 
 
 // For Statistics
@@ -288,85 +311,96 @@ const char disarmed_text[] PROGMEM = "DISARMED";
 const char armed_text[] PROGMEM = " ARMED";
 
 
-
-
 // For Intro
 const char message0[] PROGMEM = "KV_OSD_TEAM_2.2";
-const char message1[] PROGMEM = "VIDEO SIGNAL: NTSC";
-const char message2[] PROGMEM = "VIDEO SIGNAL: PAL ";
+const char message1[] PROGMEM = "VIDEO SIGNAL NTSC";
+const char message2[] PROGMEM = "VIDEO SIGNAL PAL ";
 const char message5[] PROGMEM = "MW VERSION:";
 const char message6[] PROGMEM = "MENU:THRT MIDDLE";
 const char message7[] PROGMEM = "YAW RIGHT";
 const char message8[] PROGMEM = "PITCH FULL";
-const char message59[] PROGMEM = "UNIQUE ID:";         // Call Sign on the beggining of the transmission   
+const char message9[] PROGMEM = "UNIQUE ID:";         // Call Sign on the beggining of the transmission   
 
-// For Config
-const char configMsg0[] PROGMEM = "EXIT";
-const char configMsg1[] PROGMEM = "SAVE-EXIT";
-const char configMsg2[] PROGMEM = "<PAGE>";
+// For Config menu common
+const char configMsgON[] PROGMEM = "ON";
+const char configMsgOFF[] PROGMEM = "OFF";
+const char configMsgEXT[] PROGMEM = "EXIT";
+const char configMsgSAVE[] PROGMEM = "SAVE-EXIT";
+const char configMsgPGS[] PROGMEM = "<PAGE>";
+
+// For Config pages
 //-----------------------------------------------------------Page1
-const char configMsg3[] PROGMEM = "1/6 PID CONFIG";
-const char configMsg4[] PROGMEM = "ROLL";
-const char configMsg5[] PROGMEM = "PITCH";
-const char configMsg6[] PROGMEM = "YAW";
-const char configMsg7[] PROGMEM = "ALT";
-const char configMsg8[] PROGMEM = "GPS";
-const char configMsg9[] PROGMEM = "LEVEL";
-const char configMsg10[] PROGMEM = "MAG";
+const char configMsg10[] PROGMEM = "1/8 PID CONFIG";
+const char configMsg11[] PROGMEM = "ROLL";
+const char configMsg12[] PROGMEM = "PITCH";
+const char configMsg13[] PROGMEM = "YAW";
+const char configMsg14[] PROGMEM = "ALT";
+const char configMsg15[] PROGMEM = "GPS";
+const char configMsg16[] PROGMEM = "LEVEL";
+const char configMsg17[] PROGMEM = "MAG";
 //-----------------------------------------------------------Page2
-const char configMsg11[] PROGMEM = "2/6 RC TUNING";
-const char configMsg12[] PROGMEM = "RC RATE";
-const char configMsg13[] PROGMEM = "EXPO";
-const char configMsg14[] PROGMEM = "ROLL PITCH RATE";
-const char configMsg15[] PROGMEM = "YAW RATE";
-const char configMsg16[] PROGMEM = "THROTTLE PID ATT";
-const char configMsg17[] PROGMEM = "MWCYCLE TIME";
-const char configMsg18[] PROGMEM = "MWI2C ERRORS";
+const char configMsg20[] PROGMEM = "2/8 RC TUNING";
+const char configMsg21[] PROGMEM = "RC RATE";
+const char configMsg22[] PROGMEM = "EXPONENTIAL";
+const char configMsg23[] PROGMEM = "ROLL PITCH RATE";
+const char configMsg24[] PROGMEM = "YAW RATE";
+const char configMsg25[] PROGMEM = "THROTTLE PID ATT";
+const char configMsg26[] PROGMEM = "MWCYCLE TIME";
+const char configMsg27[] PROGMEM = "MWI2C ERRORS";
 //-----------------------------------------------------------Page3
-const char configMsg19[] PROGMEM = "3/6 DISPLAY & ALARM";
-const char configMsg20[] PROGMEM = "      ";
-const char configMsg21[] PROGMEM = "ON";
-const char configMsg22[] PROGMEM = "OFF";
-const char configMsg23[] PROGMEM = "DISPLAY VOLTAGE";
-const char configMsg24[] PROGMEM = "VOLTAGE ALARM";
-const char configMsg25[] PROGMEM = "DISPLAY TEMPERATURE";
-const char configMsg26[] PROGMEM = "SET ALARM TEMP";
-const char configMsg27[] PROGMEM = "DISPLAY GPS";
-const char configMsg28[] PROGMEM = "DISPLAY COORDINATES";
-const char configMsg29[] PROGMEM = " ";
-const char configMsg30[] PROGMEM = "                   ";
+const char configMsg30[] PROGMEM = "3/8 SUPPLY & ALARM";
+const char configMsg31[] PROGMEM = "DISPLAY VOLTAGE";
+const char configMsg32[] PROGMEM = "VOLTAGE ALARM";
+const char configMsg33[] PROGMEM = "DISPLAY VID BATT";
+const char configMsg34[] PROGMEM = "DISPLAY TEMPERATURE";
+const char configMsg35[] PROGMEM = "SET TEMP ALARM";
+const char configMsg36[] PROGMEM = "CONSUMED MAH";
+const char configMsg37[] PROGMEM = "CURRENT A";
 //-----------------------------------------------------------Page4
-const char configMsg31[] PROGMEM = "4/6 DISPLAY";
-const char configMsg32[] PROGMEM = "ACTUAL RSSIADC(/4)";
-const char configMsg33[] PROGMEM = "ACTUAL RSSI";
-const char configMsg34[] PROGMEM = "SET RSSI MIN";
-const char configMsg35[] PROGMEM = "SET RSSI MAX";
-const char configMsg36[] PROGMEM = "DISPLAY RSSI";
-const char configMsg37[] PROGMEM = "UNIT SYSTEM";
-const char configMsg38[] PROGMEM = "METRIC";
-const char configMsg39[] PROGMEM = "IMPERL";
-const char configMsg40[] PROGMEM = "VIDEO SYSTEM";
-const char configMsg41[] PROGMEM = "NTSC";
-const char configMsg42[] PROGMEM = "PAL";
+const char configMsg40[] PROGMEM = "4/8 RSSI";
+const char configMsg41[] PROGMEM = "ACTUAL RSSIADC";
+const char configMsg42[] PROGMEM = "ACTUAL RSSI";
+const char configMsg43[] PROGMEM = "SET RSSI MIN";
+const char configMsg44[] PROGMEM = "SET RSSI MAX";
+const char configMsg45[] PROGMEM = "DISPLAY RSSI";
 //-----------------------------------------------------------Page5
-const char configMsg43[] PROGMEM = "5/6 CALIBRATION";
-const char configMsg44[] PROGMEM = "ACC CALIBRATION";
-const char configMsg45[] PROGMEM = "ACC ROLL :";
-const char configMsg46[] PROGMEM = "ACC PITCH :";
-const char configMsg47[] PROGMEM = "ACC Z :";
-const char configMsg48[] PROGMEM = "MAG CALIBRATION";
-const char configMsg49[] PROGMEM = "HEADING";
-const char configMsg50[] PROGMEM = "MW EEPROM WRITE";
+const char configMsg50[] PROGMEM = "5/8 CALIBRATION";
+const char configMsg51[] PROGMEM = "ACC CALIBRATION";
+const char configMsg52[] PROGMEM = "ACC ROLL";
+const char configMsg53[] PROGMEM = "ACC PITCH";
+const char configMsg54[] PROGMEM = "ACC Z";
+const char configMsg55[] PROGMEM = "MAG CALIBRATION";
+const char configMsg56[] PROGMEM = "HEADING";
+const char configMsg57[] PROGMEM = "MW EEPROM WRITE";
 //-----------------------------------------------------------Page6
-const char configMsg51[] PROGMEM = "6/6 STATISTICS";
-const char configMsg52[] PROGMEM = "TRIP:";
-const char configMsg53[] PROGMEM = "MAX DISTANCE:";
-const char configMsg54[] PROGMEM = "MAX ALTITUDE:";
-const char configMsg55[] PROGMEM = "MAX SPEED:";
-const char configMsg56[] PROGMEM = "FLYING TIME:";
-const char configMsg57[] PROGMEM = "DRAINED AMPS:";
-const char configMsg58[] PROGMEM = "MAX TEMP:";
-
+const char configMsg60[] PROGMEM = "6/8 GPS";
+const char configMsg61[] PROGMEM = "DISPLAY GPS";
+const char configMsg62[] PROGMEM = "GPS COORDIN";
+const char configMsg63[] PROGMEM = "COORD ON TOP";
+const char configMsg64[] PROGMEM = "GPS ALTITUDE";
+const char configMsg65[] PROGMEM = "ANGLE TO HOME";
+const char configMsg66[] PROGMEM = "DISPLAY HEADING";
+const char configMsg67[] PROGMEM = "DISPLAY MODE";
+//-----------------------------------------------------------Page7
+const char configMsg70[] PROGMEM = "7/8 ADV SETUP";
+const char configMsg71[] PROGMEM = "CALLSIGN";
+const char configMsg72[] PROGMEM = "THROTTLE";
+const char configMsg73[] PROGMEM = "AH SIDE BAR";
+const char configMsg74[] PROGMEM = "UNIT SYSTEM";
+const char configMsg75[] PROGMEM = "METRIC";
+const char configMsg76[] PROGMEM = "IMPERL";
+const char configMsg77[] PROGMEM = "VIDEO SYSTEM";
+const char configMsg78[] PROGMEM = "NTSC";
+const char configMsg79[] PROGMEM = "PAL";
+//-----------------------------------------------------------Page8
+const char configMsg80[] PROGMEM = "8/8 STATISTICS";
+const char configMsg81[] PROGMEM = "TRIP";
+const char configMsg82[] PROGMEM = "MAX DISTANCE";
+const char configMsg83[] PROGMEM = "MAX ALTITUDE";
+const char configMsg84[] PROGMEM = "MAX SPEED";
+const char configMsg85[] PROGMEM = "FLYING TIME";
+const char configMsg86[] PROGMEM = "AMPS DRAINED";
+const char configMsg87[] PROGMEM = "MAX TEMP";
 
 
 // POSITION OF EACH CHARACTER OR LOGO IN THE MAX7456
@@ -396,6 +430,7 @@ const char KVTeamVersionPosition = 35;
 // All screen locations defines in ScreenLayout.ino
 enum Positions {
   GPS_numSatPosition,
+  GPS_numSatPositionTop,
   GPS_directionToHomePosition,
   GPS_distanceToHomePosition,
   speedPosition,
@@ -412,6 +447,8 @@ enum Positions {
   motorArmedPosition,
   MwGPSLatPosition,
   MwGPSLonPosition,
+  MwGPSLatPositionTop,
+  MwGPSLonPositionTop,
   rssiPosition,
   temperaturePosition,
   voltagePosition,
